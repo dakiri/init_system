@@ -1,0 +1,46 @@
+- name: install sudo
+  apt:
+      name: "sudo"
+      state: latest
+  
+  become: "{{ 'yes' if (ansible_user_id  != 'root') else 'no' }}"
+  become_method: "{{ become_method | default('su') }}"
+
+- name: Set includedir in sudoers
+  lineinfile:
+    dest: /etc/sudoers
+    line: "#includedir /etc/sudoers.d"
+    state: present
+  become: "{{ 'yes' if  ansible_user_id  != 'root' else 'no' }}"
+  become_method: "{{ become_method | default('su') }}"
+
+- name: create user-ansible
+  user:
+    name: "{{ system.ansible_user }}"
+    comment: For automation
+    groups: sudo
+    shell: /bin/bash
+    append: yes
+  become: "{{ 'yes' if ansible_user_id  != 'root' else 'no' }}"
+  become_method: "{{ become_method | default('su') }}"
+
+- name: Add user "user-ansible" to sudoers
+  lineinfile:
+    path: /etc/sudoers.d/user-ansible
+    line: 'user-ansible ALL=(ALL) NOPASSWD: ALL'
+    state: present
+    mode: 0440
+    create: yes
+  become: "{{ 'yes' if  ansible_user_id  != 'root' else 'no' }}"
+  become_method: "{{ become_method | default('su') }}"
+
+- name: Set up multiple authorized keys
+  authorized_key:
+    user: "{{ system.ansible_user }}"
+    state: present
+    key: "{{ item }}"
+    key_options: "no-port-forwarding"
+  with_file:
+    - "{{ system.ansible_pub_key }}"
+  become: "{{ 'yes' if  ansible_user_id  != 'root' else 'no' }}"
+  become_method: "{{ become_method | default('su') }}"
